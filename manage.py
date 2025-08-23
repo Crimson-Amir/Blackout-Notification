@@ -1,4 +1,6 @@
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
+
+import tasks
 from utilities import handle_error
 from telegram.ext import ConversationHandler, CommandHandler, filters, MessageHandler, CallbackQueryHandler
 from core import GetAPI, translate_json_to_persian
@@ -43,18 +45,9 @@ async def get_bill_id(update, context):
         )
         return GET_BILL_ID
 
-    context.user_data['user_bill_id'] = int(user_bill_id)
-    key = [
-        [InlineKeyboardButton(keyboard.get('yes_im_sure', "ERROR"), callback_data='confirm_change'),
-         InlineKeyboardButton(keyboard.get('no_cancle_it', "ERROR"), callback_data='cancle_change')],
-    ]
-
-    data = GetAPI().get_power_bill_data(user_bill_id)
-    msg = text.get("bill_ensurance_text", "ERROR")
-    msg += "\n\n" + translate_json_to_persian(data['data'])
-
-    await context.bot.send_message(chat_id=user_detail.id, text=msg, reply_markup=InlineKeyboardMarkup(key))
-    return GET_ASSURNACE
+    msg = await context.bot.send_message(chat_id=user_detail.id, text='has done')
+    tasks.send_bill_message(user_detail.id, int(user_bill_id), msg.message_id)
+    return ConversationHandler.END
 
 
 @handle_error.handle_conversetion_error
