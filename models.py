@@ -8,8 +8,8 @@ from database import Base
 class UserService(Base):
     __tablename__ = "user_service"
 
-    user_id = Column(Integer, ForeignKey("user_detail.user_id"), primary_key=True)
-    service_id = Column(Integer, ForeignKey("service.id"), primary_key=True)
+    chat_id = Column(BigInteger, ForeignKey("user_detail.chat_id"), primary_key=True)
+    bill_id = Column(String, ForeignKey("service.bill_id"), primary_key=True)
 
     # relationships back
     user = relationship("UserDetail", back_populates="user_services")
@@ -34,10 +34,10 @@ class Service(Base):
     __tablename__ = "service"
 
     id = Column(Integer, primary_key=True)
-    bill_id = Column(String)
+    bill_id = Column(String, unique=True)
     active = Column(Boolean, default=True)
-    register_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     today_notification_status = Column(Boolean, default=False)
+    register_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     service_users = relationship("UserService", back_populates="service")
 

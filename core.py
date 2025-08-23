@@ -43,8 +43,8 @@ def get_jalali_date_range():
 class GetAPI:
     headers = {}
     proxies = {
-        "http": "socks5h://127.0.0.1:3000",
-        "https": "socks5h://127.0.0.1:3000"
+        "http": "socks5h://127.0.0.1:50000",
+        "https": "socks5h://127.0.0.1:50000"
     }
 
     def __init__(self):

@@ -2,10 +2,14 @@ from celery import Celery
 import redis, traceback, requests
 from uuid import uuid4
 from logger_config import logger
-from setting import BOT_TOKEN, TELEGRAM_CHAT_ID, ERR_THREAD_ID
+from setting import BOT_TOKEN, TELEGRAM_CHAT_ID, ERR_THREAD_ID, NOTIFICATION_THREAD_ID, WARNING_THREAD_ID, INFO_THREAD_ID
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from core import GetAPI, translate_json_to_persian
+from database import SessionLocal
 from dialogue import text, keyboard
+from sqlalchemy.exc import IntegrityError
+import functools
+from crud import insert_new_service_no_commit, add_user_service, get_user_services, remove_bill
 
 BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
@@ -21,60 +25,223 @@ def log_and_report_error(context: str, error: Exception, extra: dict = None):
     logger.error(
         context, extra={"error": str(error), "traceback": tb, **extra}
     )
-    report_error.delay(context, error.__class__.__name__, str(error), extra)
-
-def report_to_admin_api(msg, message_thread_id=ERR_THREAD_ID):
-    requests.post(
-        url=f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-        json={'chat_id': TELEGRAM_CHAT_ID, 'text': msg[:4096], 'message_thread_id': message_thread_id},
-        timeout=10
-    )
-
-@celery_app.task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
-def report_error(context, err_type, err_str, extra: dict = None):
-    """
-    Object of type ZeroDivisionError is not JSON serializable--cant send error object directly
-    """
-    err = (
+    err_msg = (
         f"🔴 {context}:"
-        f"\n\nError type: {err_type}"
-        f"\nError reason: {err_str}"
+        f"\n\nError type: {type(error)}"
+        f"\nError reason: {str(error)}"
         f"\n\nExtera Info:"
         f"\n{extra}"
     )
-    report_to_admin_api(err)
+    send_message_api.delay(err_msg)
 
+async def report_to_admin(level, fun_name, msg, user_table=None):
+    try:
+        report_level = {
+            'info': {'thread_id': INFO_THREAD_ID, 'emoji': '🔵'},
+            'warning': {'thread_id': WARNING_THREAD_ID, 'emoji': '🟡'},
+            'notification': {'thread_id': NOTIFICATION_THREAD_ID, 'emoji': '⚖️'}
+        }
+
+        emoji = report_level.get(level, {}).get('emoji', '🔵')
+        thread_id = report_level.get(level, {}).get('thread_id', INFO_THREAD_ID)
+        message = f"{emoji} Report {level.replace('_', ' ')} {fun_name}\n\n{msg}"
+
+        if user_table:
+            message += (
+                "\n\n👤 User Info:"
+                f"\nUser name: {user_table.first_name} {user_table.last_name}"
+                f"\nUser ID: {user_table.chat_id}"
+                f"\nUsername: @{user_table.username}"
+            )
+
+        send_message_api.delay(message, thread_id)
+    except Exception as e:
+        log_and_report_error(f'error in report to admin.\n{e}', e)
 
 @celery_app.task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
-def send_bill_message(chat_id: int, user_bill_id: int, message_id: int):
+def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT_ID):
+    print(chat_id)
+    requests.post(
+        url=f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+        json={'chat_id': chat_id, 'text': msg[:4096], 'message_thread_id': message_thread_id},
+        timeout=10
+    )
+
+def handle_task_errors(func):
+    @functools.wraps(func)
+    def wrapper(self, chat_id, *args, **kwargs):
+        try:
+            return func(self, chat_id, *args, **kwargs)
+
+        except Exception as e:
+            retries = getattr(self.request, "retries", None)
+            max_retries = getattr(self, "max_retries", None)
+
+            log_and_report_error(
+                f"Celery task: {func.__name__}",
+                e,
+                extra={
+                    "chat_id": chat_id,
+                    "_args": args,
+                    "_kwargs": kwargs,
+                    "retries": retries,
+                    "max_retries": max_retries,
+                }
+            )
+
+            if retries is not None and max_retries is not None and retries >= max_retries:
+                try:
+                    send_message_api.delay(
+                        chat_id=chat_id,
+                        message_thread_id=None,
+                        msg=text.get("task_failed", "task_failed")
+                    )
+                except Exception as notify_err:
+                    log_and_report_error(
+                        f"Failed to notify user {chat_id} about final retry",
+                        notify_err
+                    )
+            raise
+    return wrapper
+
+@celery_app.task(bind=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
+@handle_task_errors
+def send_bill_message(self, chat_id: int, user_bill_id: int, message_id: int):
     data = GetAPI().get_power_bill_data(user_bill_id)
 
-    msg = text.get("bill_ensurance_text", "ERROR")
+    msg = text.get("are_you_sure_about_this_address", "are_you_sure_about_this_address")
     msg += "\n\n" + translate_json_to_persian(data['data'])
 
     key = [
         [
-            InlineKeyboardButton(keyboard.get('yes_im_sure', "ERROR"), callback_data='confirm_change'),
-            InlineKeyboardButton(keyboard.get('no_cancle_it', "ERROR"), callback_data='cancle_change')
+            InlineKeyboardButton(keyboard.get('no_cancle_it', "no_cancle_it"), callback_data=f'add_b4d_a5s__cancle__{user_bill_id}'),
+            InlineKeyboardButton(keyboard.get('yes_im_sure', "yes_im_sure"), callback_data=f'add_b4d_a5s__confirm__{user_bill_id}')
         ]
     ]
-    reply_markup = InlineKeyboardMarkup(key)
+    reply_markup = InlineKeyboardMarkup(key).to_dict()
 
-    reply_markup_dict = reply_markup.to_dict()
-
-    requests.post(
-        f"{BASE_URL}/deleteMessage",
+    response = requests.post(
+        f"{BASE_URL}/editMessageText",
         json={
             "chat_id": chat_id,
-            "message_id": message_id
-        }
-    )
-
-    requests.post(
-        f"{BASE_URL}/sendMessage",
-        json={
-            "chat_id": chat_id,
+            "message_id": message_id,
             "text": msg,
-            "reply_markup": reply_markup_dict
+            "reply_markup": reply_markup
         }
     )
+
+    return response.json()
+
+
+@celery_app.task(bind=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
+@handle_task_errors
+def add_bill_id(self, chat_id: int, user_bill_id: int, message_id: int):
+    with SessionLocal() as session:
+        try:
+            insert_new_service_no_commit(session, user_bill_id)
+            session.commit()
+        except IntegrityError:
+            session.rollback()
+
+        try:
+            add_user_service(session, user_bill_id, chat_id)
+            session.commit()
+            msg = text.get("bill_id_succesfully_added", "bill_id_succesfully_added")
+        except IntegrityError:
+            session.rollback()
+            msg = text.get("you_already_have_this_bill", "you_already_have_this_bill")
+
+
+    key = [[InlineKeyboardButton(keyboard.get('home_button', "home_button"), callback_data='start_edit_message')]]
+    reply_markup = InlineKeyboardMarkup(key).to_dict()
+
+    response = requests.post(
+        f"{BASE_URL}/editMessageText",
+        json={
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "text": msg,
+            "reply_markup": reply_markup
+        }
+    )
+
+    return response.json()
+
+
+@celery_app.task(bind=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
+@handle_task_errors
+def get_all_user_bill_ids(self, chat_id: int, message_id: int):
+    with SessionLocal() as session:
+        all_bills = get_user_services(session, chat_id)
+        if not all_bills:
+            key = [[InlineKeyboardButton(keyboard.get("new_notification", "new_notification"), callback_data=f'ask_for_bill_id')]]
+            msg = text.get("no_service_found", "no_service_found")
+        else:
+            key = [[InlineKeyboardButton(bill.bill_id, callback_data=f'find_my_bill__{bill.bill_id}')] for bill in all_bills]
+            msg = text.get("select_your_bill", "select_your_bill")
+
+        key.append([InlineKeyboardButton(keyboard.get("back", "back"), callback_data='start_edit_message')])
+        reply_markup = InlineKeyboardMarkup(key).to_dict()
+    response = requests.post(
+        f"{BASE_URL}/editMessageText",
+        json={
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "text": msg,
+            "reply_markup": reply_markup
+        }
+    )
+
+    return response.json()
+
+
+
+@celery_app.task(bind=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
+@handle_task_errors
+def find_my_bill(self, chat_id: int, bill_id: int, message_id: int):
+    data = GetAPI().get_power_bill_data(bill_id)
+
+    msg = text.get("your_service_detail", "your_service_detail")
+    msg += "\n\n" + translate_json_to_persian(data['data'])
+
+    key = [[InlineKeyboardButton(keyboard.get("back", "back"), callback_data='my_bill_ids'),
+            InlineKeyboardButton(keyboard.get("remove", "remove"), callback_data=f'remove_bill_assure__{bill_id}')]]
+    reply_markup = InlineKeyboardMarkup(key).to_dict()
+
+    response = requests.post(
+        f"{BASE_URL}/editMessageText",
+        json={
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "text": msg,
+            "reply_markup": reply_markup
+        }
+    )
+
+    return response.json()
+
+
+@celery_app.task(bind=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
+@handle_task_errors
+def remove_bill_id(self, chat_id: int, bill_id: int, message_id: int):
+    with SessionLocal() as session:
+        remove_bill(session, bill_id, chat_id)
+        session.commit()
+
+    key = [[InlineKeyboardButton(keyboard.get("back", "back"), callback_data='my_bill_ids')]]
+    reply_markup = InlineKeyboardMarkup(key).to_dict()
+    msg = text.get("removed_successfully", "removed_successfully")
+
+    response = requests.post(
+        f"{BASE_URL}/editMessageText",
+        json={
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "text": msg,
+            "reply_markup": reply_markup
+        }
+    )
+
+    return response.json()
+
+

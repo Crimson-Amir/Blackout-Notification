@@ -4,8 +4,9 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Callb
 from setting import BOT_TOKEN
 import dialogue
 from tasks import log_and_report_error
-from utilities import handle_error
-from manage import add_bill_id_handler
+from utilities import handle_error, ustart
+from manage import add_bill_id_handler, add_bill_id_address, my_bill_ids, find_my_bill, remove_bill_assure, remove_bill
+
 
 @handle_error.handle_functions_error
 async def some(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -30,12 +31,20 @@ if __name__ == '__main__':
 
     # Commands
     application.add_handler(CommandHandler('start', register_user))
-    application.add_handler(CommandHandler('new_bill_id', register_user))
 
     # Bot Main Menu
+    application.add_handler(CallbackQueryHandler(ustart, pattern='start_edit_message'))
     # application.add_handler(CallbackQueryHandler(start_reFactore.start, pattern='start(.*)'))
 
     # application.job_queue.run_repeating(vpn_notification.notification_timer, interval=10 * 60, first=0)
+    # Manage
+    application.add_handler(CallbackQueryHandler(add_bill_id_address, pattern='add_b4d_a5s__(.*)'))
+    application.add_handler(CallbackQueryHandler(my_bill_ids, pattern='my_bill_ids'))
+    application.add_handler(CallbackQueryHandler(find_my_bill, pattern='find_my_bill__(.*)'))
+    application.add_handler(CallbackQueryHandler(remove_bill_assure, pattern='remove_bill_assure__(.*)'))
+    application.add_handler(CallbackQueryHandler(remove_bill, pattern='r4e_t2s_b2l__(.*)'))
     application.add_handler(add_bill_id_handler)
+
+
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_message))
     application.run_polling()
