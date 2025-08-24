@@ -35,7 +35,7 @@ if __name__ == '__main__':
     application.add_handler(CallbackQueryHandler(remove_bill_assure, pattern='remove_bill_assure__(.*)'))
     application.add_handler(CallbackQueryHandler(remove_bill, pattern='r4e_t2s_b2l__(.*)'))
     application.add_handler(add_bill_id_handler)
-    application.job_queue.run_repeating(check_notification, interval=1 * 60, first=0)
+    application.job_queue.run_repeating(check_notification, interval=10 * 60, first=0)
 
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_message))
