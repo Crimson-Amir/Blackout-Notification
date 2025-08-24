@@ -80,7 +80,7 @@ def log_and_report_error(context: str, error: Exception, extra: dict = None):
             f"\n\nExtera Info:"
             f"\n{extra}"
         )
-        send_message_api.delay(err_msg)
+        send_message_api.delay(str(err_msg))
     except Exception as e:
         send_message_api.delay(f'error in report to admin.\n{e}')
 
@@ -157,6 +157,7 @@ def handle_task_errors(func):
         except Exception as e:
             retries = getattr(self.request, "retries", None)
             max_retries = getattr(self, "max_retries", None)
+
             send_message_api.delay(f'error in report to admin')
 
             log_and_report_error(
