@@ -70,7 +70,7 @@ def format_outages(data):
         elif delta == 2:
             label = f"پس‌فردا ({outage['outage_date']})"
         else:
-            weekday = persian_weekdays[outage_date.j_weekday]
+            weekday = persian_weekdays[outage_date.weekday()]
             label = f"{weekday} ({outage['outage_date']})"
 
         # Append info
