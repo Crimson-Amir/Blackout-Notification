@@ -53,7 +53,7 @@ def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT
                 remove_bill(session, bill_id, chat_id)
                 session.execute()
     except Exception as e:
-        send_message_api.delay(f'{e}')
+        send_message_api.delay(f'error')
         log_and_report_error("tasks: send_message_api", e, extra={"chat_id": chat_id, "msg": msg})
 
 
