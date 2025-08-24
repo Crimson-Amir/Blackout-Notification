@@ -83,6 +83,7 @@ def format_outages(data):
 
         lines.append(label + ":")
         for outage in grouped[date_str]:
+            lines.append("")  # blank line between outages
             lines.append(f"شروع: {outage['outage_start_time']}")
             lines.append(f"پایان: {outage['outage_stop_time']}")
             lines.append("")  # blank line between outages
@@ -363,9 +364,9 @@ def check_the_service(bill_id):
                 for user in users:
                     if user.chat_id in group_thread_id.keys():
                         key = [[InlineKeyboardButton(keyboard.get("join_the_bot", "join_the_bot"), url='t.me/@black_out_notification_bot/new_bill_id')]]
-                        send_message_api.delay(msg, group_thread_id.get(user.chat_id, key), user.chat_id, reply_markup=key)
+                        send_message_api.delay(msg, group_thread_id.get(user.chat_id, key), user.chat_id, bill_id=bill_id, reply_markup=key)
                         continue
-                    send_message_api.delay(msg, None, user.chat_id)
+                    send_message_api.delay(msg, None, user.chat_id, bill_id=bill_id)
 
                 msg_ = ("Service Checked!"
                         f"\nbill_id: {bill_id}"
