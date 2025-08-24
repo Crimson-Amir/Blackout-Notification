@@ -81,7 +81,7 @@ def format_outages(data):
 
     return "\n".join(lines)
 
-async def report_to_admin(level, fun_name, msg, user_table=None):
+def report_to_admin(level, fun_name, msg, user_table=None):
     try:
         report_level = {
             'info': {'thread_id': INFO_THREAD_ID, 'emoji': '🔵'},
@@ -106,12 +106,26 @@ async def report_to_admin(level, fun_name, msg, user_table=None):
         log_and_report_error(f'error in report to admin.\n{e}', e)
 
 @celery_app.task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
-def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT_ID):
-    requests.post(
-        url=f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-        json={'chat_id': chat_id, 'text': msg[:4096], 'message_thread_id': message_thread_id, "parse_mode": "HTML"},
-        timeout=10
-    )
+def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT_ID, bill_id=None):
+    try:
+        resp = requests.post(
+            url=f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json={
+                'chat_id': chat_id,
+                'text': msg[:4096],
+                'message_thread_id': message_thread_id,
+                "parse_mode": "HTML"
+            },
+            timeout=10
+        )
+
+        data = resp.json()
+        if not data.get("ok", False) and bill_id and data.get("description", None) == "Forbidden: bot was blocked by the user":
+            with SessionLocal() as session:
+                remove_bill(session, bill_id, chat_id)
+                session.execute()
+    except Exception as e:
+        log_and_report_error("tasks: send_message_api", e, extra={"chat_id": chat_id, "msg": msg})
 
 def handle_task_errors(func):
     @functools.wraps(func)
@@ -149,6 +163,7 @@ def handle_task_errors(func):
                     )
             raise
     return wrapper
+
 
 @celery_app.task(bind=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
 @handle_task_errors
@@ -210,6 +225,11 @@ def add_bill_id(self, chat_id: int, user_bill_id: int, message_id: int):
             "reply_markup": reply_markup
         }
     )
+
+    msg_ = ("New Bill ID Registered!"
+            f"\nchat_id: {chat_id}"
+            f"\nbill_id: {user_bill_id}")
+    report_to_admin("info", "add_bill_id", msg_)
 
     return response.json()
 
@@ -288,6 +308,11 @@ def remove_bill_id(self, chat_id: int, bill_id: int, message_id: int):
         }
     )
 
+    msg_ = ("Bill ID Removed!"
+            f"\nchat_id: {chat_id}"
+            f"\nbill_id: {bill_id}")
+    report_to_admin("info", "remove_bill_id", msg_)
+
     return response.json()
 
 
@@ -296,9 +321,7 @@ def check_all_bills():
     try:
         with SessionLocal() as session:
             all_services = get_all_available_services(session)
-            print(all_services)
             for i, service in enumerate(all_services):
-                print(service.bill_id)
                 check_the_service.apply_async(
                     args=(service.bill_id,),
                     countdown=i * 10
@@ -321,11 +344,18 @@ def check_the_service(bill_id):
                 time = data[0]["outage_stop_time"]
                 valid_until = jalali_to_gregorian(date, time)
                 update_valid_until(session, bill_id, valid_until)
+
                 msg = text.get("outage_report", "outage_report").format(bill_id)
                 msg += "\n" + format_outages(data)
 
                 for user in users:
                     send_message_api.delay(msg, None, user.chat_id)
+
+                msg_ = ("Service Checked!"
+                        f"\nbill_id: {bill_id}"
+                        f"\nvalid_until: {str(valid_until)}")
+                report_to_admin("info", "check_the_service", msg_)
+
 
     except Exception as e:
         log_and_report_error(
