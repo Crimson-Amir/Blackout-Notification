@@ -82,8 +82,8 @@ def format_outages(data):
             label = f"{weekday} ({date_str})"
 
         lines.append(label + ":")
+        lines.append("")
         for outage in grouped[date_str]:
-            lines.append("")  # blank line between outages
             lines.append(f"شروع: {outage['outage_start_time']}")
             lines.append(f"پایان: {outage['outage_stop_time']}")
             lines.append("")  # blank line between outages
