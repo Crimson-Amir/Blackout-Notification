@@ -19,7 +19,7 @@ text = {
     "removed_successfully": "✅ شما دیگر اطلاعیه های این آدرس را دریافت نمیکنید",
     "no_service_found": "شما هیچ آدرس فعالی ندارید، همین الان یکی بسازید:",
     "task_failed": "❌ عملیات شکست خورد!",
-    "outage_report": "⚡ گزارش قطعی برق روزهای آینده:"
+    "outage_report": "⚡ گزارش قطعی برق قبض <code>{0}</code>:"
 }
 
 keyboard = {

@@ -321,7 +321,7 @@ def check_the_service(bill_id):
                 time = data[0]["outage_stop_time"]
                 valid_until = jalali_to_gregorian(date, time)
                 update_valid_until(session, bill_id, valid_until)
-                msg = text.get("outage_report", "outage_report")
+                msg = text.get("outage_report", "outage_report").format(bill_id)
                 msg += "\n" + format_outages(data)
 
                 for user in users:
