@@ -50,6 +50,7 @@ def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT
                 remove_bill(session, bill_id, chat_id)
                 session.execute()
     except Exception as e:
+        send_message_api.delay(f'{e}')
         log_and_report_error("tasks: send_message_api", e, extra={"chat_id": chat_id, "msg": msg})
 
 
@@ -69,10 +70,8 @@ def log_and_report_error(context: str, error: Exception, extra: dict = None):
     try:
         tb = traceback.format_exc()
         error_id = uuid4().hex
-        send_message_api.delay(f'1')
         extra = extra or {}
         extra["error_id"] = error_id
-        send_message_api.delay(f'2')
         logger.error(
             context, extra={"error": str(error), "traceback": tb, **extra}
         )
@@ -83,7 +82,6 @@ def log_and_report_error(context: str, error: Exception, extra: dict = None):
             f"\n\nExtera Info:"
             f"\n{extra}"
         )
-        send_message_api.delay(f'3')
         send_message_api.delay(str(err_msg))
     except Exception as e:
         send_message_api.delay(f'error in report to admin.\n{type(e)}')
