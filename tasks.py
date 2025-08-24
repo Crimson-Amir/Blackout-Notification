@@ -350,7 +350,8 @@ def check_the_service(bill_id):
                 msg += "\n" + format_outages(data)
 
                 for user in users:
-                    send_message_api.delay(msg, None, user.chat_id)
+                    group_thread_id = {-1002740590466: 3}
+                    send_message_api.delay(msg, group_thread_id.get(user.chat_id, None), user.chat_id)
 
                 msg_ = ("Service Checked!"
                         f"\nbill_id: {bill_id}"
