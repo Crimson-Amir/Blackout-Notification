@@ -36,7 +36,7 @@ class Service(Base):
     id = Column(Integer, primary_key=True)
     bill_id = Column(String, unique=True)
     active = Column(Boolean, default=True)
-    today_notification_status = Column(Boolean, default=False)
+    valid_until = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     register_date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     service_users = relationship("UserService", back_populates="service")

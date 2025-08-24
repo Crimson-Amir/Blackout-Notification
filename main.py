@@ -1,21 +1,12 @@
 from start import register_user
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from setting import BOT_TOKEN
 import dialogue
 from tasks import log_and_report_error
-from utilities import handle_error, ustart
-from manage import add_bill_id_handler, add_bill_id_address, my_bill_ids, find_my_bill, remove_bill_assure, remove_bill
+from utilities import ustart
+from manage import (add_bill_id_handler, add_bill_id_address, my_bill_ids, find_my_bill,
+                    remove_bill_assure, remove_bill, check_notification, set_blackout_report_token)
 
-
-@handle_error.handle_functions_error
-async def some(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_chat
-    text = ''
-    keyboard = [
-        [InlineKeyboardButton("", callback_data='vpn_recive_test_service')],
-    ]
-    return await update.callback_query.edit_message_text(text=text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='html')
 
 async def unknown_message(update, context):
     try:
@@ -31,12 +22,12 @@ if __name__ == '__main__':
 
     # Commands
     application.add_handler(CommandHandler('start', register_user))
+    application.add_handler(CommandHandler('set_token', set_blackout_report_token))
 
     # Bot Main Menu
     application.add_handler(CallbackQueryHandler(ustart, pattern='start_edit_message'))
     # application.add_handler(CallbackQueryHandler(start_reFactore.start, pattern='start(.*)'))
 
-    # application.job_queue.run_repeating(vpn_notification.notification_timer, interval=10 * 60, first=0)
     # Manage
     application.add_handler(CallbackQueryHandler(add_bill_id_address, pattern='add_b4d_a5s__(.*)'))
     application.add_handler(CallbackQueryHandler(my_bill_ids, pattern='my_bill_ids'))
@@ -44,6 +35,7 @@ if __name__ == '__main__':
     application.add_handler(CallbackQueryHandler(remove_bill_assure, pattern='remove_bill_assure__(.*)'))
     application.add_handler(CallbackQueryHandler(remove_bill, pattern='r4e_t2s_b2l__(.*)'))
     application.add_handler(add_bill_id_handler)
+    application.job_queue.run_repeating(check_notification, interval=1 * 60, first=0)
 
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown_message))

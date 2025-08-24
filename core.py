@@ -33,9 +33,9 @@ def translate_json_to_persian(data: dict) -> str:
         lines.append(f"{persian_key}: {value}")
     return "\n".join(lines)
 
-def get_jalali_date_range():
+def get_jalali_date_range(day=5):
     today_jalali = jdatetime.date.today()
-    three_days_later = today_jalali + timedelta(days=3)
+    three_days_later = today_jalali + timedelta(days=day)
     from_date = today_jalali.strftime("%Y/%m/%d")
     to_date = three_days_later.strftime("%Y/%m/%d")
     return from_date, to_date
@@ -82,6 +82,6 @@ class GetAPI:
 
     def get_planned_blackout_report(self, bill_id, from_date, to_date):
         """Retrieve access token for a given server."""
-        url = 'https://uiapi2.saapa.ir/api/ebills/GetPowerBillData'
+        url = 'https://uiapi2.saapa.ir/api/ebills/PlannedBlackoutsReport'
         data = {'bill_id': bill_id, 'from_date': from_date, 'to_date': to_date}
         return self.make_request('post', url=url, json=data, headers=self.get_header(), proxies=self.proxies)

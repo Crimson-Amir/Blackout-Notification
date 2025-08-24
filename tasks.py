@@ -4,12 +4,15 @@ from uuid import uuid4
 from logger_config import logger
 from setting import BOT_TOKEN, TELEGRAM_CHAT_ID, ERR_THREAD_ID, NOTIFICATION_THREAD_ID, WARNING_THREAD_ID, INFO_THREAD_ID
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from core import GetAPI, translate_json_to_persian
+from core import GetAPI, translate_json_to_persian, get_jalali_date_range
 from database import SessionLocal
 from dialogue import text, keyboard
 from sqlalchemy.exc import IntegrityError
 import functools
-from crud import insert_new_service_no_commit, add_user_service, get_user_services, remove_bill
+from crud import (insert_new_service_no_commit, add_user_service, get_user_services, remove_bill,
+                  get_all_available_services, get_all_service_users, update_valid_until)
+import jdatetime
+from datetime import datetime, timezone
 
 BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
@@ -17,6 +20,18 @@ celery_app = Celery(
     "tasks",
     broker="pyamqp://guest@localhost//"
 )
+
+def jalali_to_gregorian(jalali_date: str, time_str: str) -> datetime:
+    """
+    Convert Jalali date (YYYY/MM/DD) + time (HH:MM) → Python datetime (UTC)
+    """
+    year, month, day = map(int, jalali_date.split("/"))
+    hour, minute = map(int, time_str.split(":"))
+
+    jdt = jdatetime.datetime(year, month, day, hour, minute)
+    # convert to Gregorian datetime
+    gdt = jdt.togregorian()
+    return gdt.replace(tzinfo=timezone.utc)
 
 def log_and_report_error(context: str, error: Exception, extra: dict = None):
     tb = traceback.format_exc()
@@ -60,7 +75,6 @@ async def report_to_admin(level, fun_name, msg, user_table=None):
 
 @celery_app.task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
 def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT_ID):
-    print(chat_id)
     requests.post(
         url=f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
         json={'chat_id': chat_id, 'text': msg[:4096], 'message_thread_id': message_thread_id},
@@ -245,3 +259,45 @@ def remove_bill_id(self, chat_id: int, bill_id: int, message_id: int):
     return response.json()
 
 
+@celery_app.task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
+def check_all_bills():
+    try:
+        with SessionLocal() as session:
+            all_services = get_all_available_services(session)
+            print(all_services)
+            for i, service in enumerate(all_services):
+                print(service.bill_id)
+                check_the_service.apply_async(
+                    args=(service.bill_id,),
+                    countdown=i * 10
+                )
+    except Exception as e:
+        log_and_report_error(f"Celery task: check_all_bills", e)
+        raise e
+
+
+@celery_app.task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
+def check_the_service(bill_id):
+    try:
+        with SessionLocal() as session:
+            users = get_all_service_users(session, bill_id)
+            from_date, to_date = get_jalali_date_range()
+            get_data = GetAPI().get_planned_blackout_report(bill_id, from_date, to_date)
+            data = get_data.get("data")
+            if data:
+                date = data[0]["outage_date"]
+                time = data[0]["outage_stop_time"]
+                valid_until = jalali_to_gregorian(date, time)
+                update_valid_until(session, bill_id, valid_until)
+                # msg = text.get("removed_successfully", "removed_successfully")
+                msg = data
+                for user in users:
+                    print(user.chat_id)
+                    send_message_api.delay(f"hello{data}", None, user.chat_id)
+
+    except Exception as e:
+        log_and_report_error(
+            f"Celery task: check_the_service",
+            e, extra={"bill_id": bill_id}
+        )
+        raise e

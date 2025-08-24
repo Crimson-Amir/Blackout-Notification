@@ -1,8 +1,10 @@
 from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 import tasks
+from database import SessionLocal
 from utilities import handle_error
-from telegram.ext import ConversationHandler, CommandHandler, filters, MessageHandler, CallbackQueryHandler
+from telegram.ext import ConversationHandler, CommandHandler, filters, MessageHandler, CallbackQueryHandler, ContextTypes
 from dialogue import text, keyboard
+from crud import set_new_blackout_report_token
 
 GET_BILL_ID, GET_ASSURNACE = range(2)
 
@@ -107,3 +109,14 @@ async def remove_bill(update, context):
     bill_id = str(query.data.replace('r4e_t2s_b2l__', ''))
     await query.answer(text.get("wait", "wait"))
     tasks.remove_bill_id.delay(int(user_detail.id), bill_id, query.message.message_id)
+
+async def check_notification(context: ContextTypes.DEFAULT_TYPE):
+    tasks.check_all_bills.delay()
+
+async def set_blackout_report_token(update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_chat
+    if user.id != 6450325872:
+        return await context.bot.send_message(user.id, "you are not admin")
+    with SessionLocal() as session:
+        set_new_blackout_report_token(session, str(update.message.text.replace("/set_token ", "")))
+        await context.bot.send_message(user.id, "set succesfully")

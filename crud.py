@@ -1,4 +1,5 @@
 import models as model
+from datetime import datetime, timezone
 
 def create_user(session, user_detail):
     user = model.UserDetail(
@@ -44,3 +45,38 @@ def remove_bill(session, bill_id, chat_id):
         chat_id=int(chat_id)
     ).delete(synchronize_session=False)
     return rows
+
+def get_all_available_services(session):
+    now = datetime.now(timezone.utc)
+    return (
+        session.query(model.Service)
+        .filter(model.Service.valid_until < now)
+        .all()
+    )
+
+
+def get_all_service_users(session, bill_id):
+    return (
+        session.query(model.UserService)
+        .filter(model.UserService.bill_id == bill_id)
+        .all()
+    )
+
+
+def update_valid_until(session, bill_id: int, valid_until: datetime):
+    service = session.query(model.Service).filter(model.Service.bill_id == bill_id).first()
+    if not service:
+        raise ValueError(f"Service {bill_id} not found")
+
+    service.valid_until = valid_until
+    session.add(service)
+    session.commit()
+
+def set_new_blackout_report_token(session, token):
+    update_token = session.query(model.Tokens).filter(model.Tokens.token_name == "blackout_report_token").first()
+    if not update_token:
+        raise ValueError("token not found")
+
+    update_token.token = token
+    session.add(update_token)
+    session.commit()
