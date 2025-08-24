@@ -157,6 +157,7 @@ def handle_task_errors(func):
         except Exception as e:
             retries = getattr(self.request, "retries", None)
             max_retries = getattr(self, "max_retries", None)
+            send_message_api.delay(f'error in report to admin')
 
             log_and_report_error(
                 f"Celery task: {func.__name__}",
