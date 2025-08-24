@@ -23,6 +23,36 @@ celery_app = Celery(
     broker="pyamqp://guest@localhost//"
 )
 
+
+@celery_app.task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
+def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT_ID, bill_id=None, reply_markup=None):
+    try:
+        json_data = {
+            'chat_id': chat_id,
+            'text': msg[:4096],
+            "parse_mode": "HTML"
+        }
+        if reply_markup:
+            json_data["reply_markup"] = reply_markup
+        if message_thread_id:
+            json_data['message_thread_id'] = message_thread_id
+
+        resp = requests.post(
+            url=f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json=json_data,
+            timeout=10
+        )
+
+        data = resp.json()
+        if not data.get("ok", False) and bill_id and data.get("description",
+                                                              None) == "Forbidden: bot was blocked by the user":
+            with SessionLocal() as session:
+                remove_bill(session, bill_id, chat_id)
+                session.execute()
+    except Exception as e:
+        log_and_report_error("tasks: send_message_api", e, extra={"chat_id": chat_id, "msg": msg})
+
+
 def jalali_to_gregorian(jalali_date: str, time_str: str) -> datetime:
     """
     Convert Jalali date (YYYY/MM/DD) + time (HH:MM) → Python datetime in UTC
@@ -112,32 +142,6 @@ def report_to_admin(level, fun_name, msg, user_table=None):
         send_message_api.delay(message, thread_id)
     except Exception as e:
         log_and_report_error(f'error in report to admin.\n{e}', e)
-
-@celery_app.task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
-def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT_ID, bill_id=None, reply_markup=None):
-    try:
-        json_data = {
-                'chat_id': chat_id,
-                'text': msg[:4096],
-                'message_thread_id': message_thread_id,
-                "parse_mode": "HTML"
-        }
-        if reply_markup:
-            json_data["reply_markup"] = reply_markup
-
-        resp = requests.post(
-            url=f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            json=json_data,
-            timeout=10
-        )
-
-        data = resp.json()
-        if not data.get("ok", False) and bill_id and data.get("description", None) == "Forbidden: bot was blocked by the user":
-            with SessionLocal() as session:
-                remove_bill(session, bill_id, chat_id)
-                session.execute()
-    except Exception as e:
-        log_and_report_error("tasks: send_message_api", e, extra={"chat_id": chat_id, "msg": msg})
 
 def handle_task_errors(func):
     @functools.wraps(func)
