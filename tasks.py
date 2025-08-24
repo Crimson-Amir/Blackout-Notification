@@ -357,14 +357,15 @@ def check_the_service(bill_id):
                 update_valid_until(session, bill_id, valid_until)
 
                 msg = text.get("outage_report", "outage_report").format(bill_id)
-                msg += "\n" + format_outages(data)
+                msg += "\n\n" + format_outages(data)
                 group_thread_id = {-1002740590466: 3, -1001713158839: 11350}
 
                 for user in users:
                     if user.chat_id in group_thread_id.keys():
                         key = [[InlineKeyboardButton(keyboard.get("come_to_robot", "back"), callback_data='my_bill_ids')]]
-
-                    send_message_api.delay(msg, group_thread_id.get(user.chat_id, None), user.chat_id)
+                        send_message_api.delay(msg, group_thread_id.get(user.chat_id, key), user.chat_id, reply_markup=key)
+                        continue
+                    send_message_api.delay(msg, None, user.chat_id)
 
                 msg_ = ("Service Checked!"
                         f"\nbill_id: {bill_id}"
