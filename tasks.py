@@ -220,6 +220,12 @@ def add_bill_id(self, chat_id: int, user_bill_id: int, message_id: int):
             add_user_service(session, user_bill_id, chat_id)
             session.commit()
             msg = text.get("bill_id_succesfully_added", "bill_id_succesfully_added")
+
+            msg_ = ("New Bill ID Registered!"
+                    f"\nchat_id: {chat_id}"
+                    f"\nbill_id: {user_bill_id}")
+            report_to_admin("info", "add_bill_id", msg_)
+
         except IntegrityError:
             session.rollback()
             msg = text.get("you_already_have_this_bill", "you_already_have_this_bill")
@@ -237,11 +243,6 @@ def add_bill_id(self, chat_id: int, user_bill_id: int, message_id: int):
             "reply_markup": reply_markup
         }
     )
-
-    msg_ = ("New Bill ID Registered!"
-            f"\nchat_id: {chat_id}"
-            f"\nbill_id: {user_bill_id}")
-    report_to_admin("info", "add_bill_id", msg_)
 
     return response.json()
 
@@ -362,10 +363,10 @@ def check_the_service(bill_id):
                 group_thread_id = {-1002740590466: 3, -1001713158839: 11350}
 
                 for user in users:
-                    if user.chat_id in group_thread_id.keys():
-                        key = [[InlineKeyboardButton(keyboard.get("join_the_bot", "join_the_bot"), url='t.me/@black_out_notification_bot/new_bill_id')]]
-                        send_message_api.delay(msg, group_thread_id.get(user.chat_id, key), user.chat_id, bill_id=bill_id, reply_markup=key)
-                        continue
+                    # if user.chat_id in group_thread_id.keys():
+                    #     key = [[InlineKeyboardButton(keyboard.get("join_the_bot", "join_the_bot"), url='t.me/@black_out_notification_bot/new_bill_id')]]
+                    #     send_message_api.delay(msg, group_thread_id.get(user.chat_id, key), user.chat_id, bill_id=bill_id, reply_markup=key)
+                    #     continue
                     send_message_api.delay(msg, None, user.chat_id, bill_id=bill_id)
 
                 msg_ = ("Service Checked!"
