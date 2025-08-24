@@ -362,7 +362,7 @@ def check_the_service(bill_id):
 
                 for user in users:
                     if user.chat_id in group_thread_id.keys():
-                        key = [[InlineKeyboardButton(keyboard.get("come_to_robot", "back"), callback_data='my_bill_ids')]]
+                        key = [[InlineKeyboardButton(keyboard.get("join_the_bot", "join_the_bot"), url='t.me/@black_out_notification_bot/new_bill_id')]]
                         send_message_api.delay(msg, group_thread_id.get(user.chat_id, key), user.chat_id, reply_markup=key)
                         continue
                     send_message_api.delay(msg, None, user.chat_id)

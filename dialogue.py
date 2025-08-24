@@ -19,7 +19,7 @@ text = {
     "removed_successfully": "✅ شما دیگر اطلاعیه های این آدرس را دریافت نمیکنید",
     "no_service_found": "شما هیچ آدرس فعالی ندارید، همین الان یکی بسازید:",
     "task_failed": "❌ عملیات شکست خورد!",
-    "outage_report": "⚡ گزارش قطعی برق قبض <code>{0}</code>:"
+    "outage_report": "⚡ گزارش قطعی برق قبض <code>{0}</code>:",
 }
 
 keyboard = {
@@ -31,5 +31,6 @@ keyboard = {
     "yes_im_sure": "بله مطمئنم ✅",
     "no_cancle_it": "نه منصرف شدم ❌",
     "remove": "حذف ⬇️",
-    "back": "برگشت ⬅️"
+    "back": "برگشت ⬅️",
+    "join_the_bot": "دریافت اعلان قبض خودتون ↧"
 }
