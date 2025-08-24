@@ -83,9 +83,10 @@ def log_and_report_error(context: str, error: Exception, extra: dict = None):
             f"\n\nExtera Info:"
             f"\n{extra}"
         )
+        send_message_api.delay(f'3')
         send_message_api.delay(str(err_msg))
     except Exception as e:
-        send_message_api.delay(f'error in report to admin.\n{e}')
+        send_message_api.delay(f'error in report to admin.\n{type(e)}')
 
 
 def format_outages(data):
