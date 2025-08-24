@@ -13,6 +13,7 @@ from crud import (insert_new_service_no_commit, add_user_service, get_user_servi
                   get_all_available_services, get_all_service_users, update_valid_until)
 import jdatetime
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
@@ -23,15 +24,15 @@ celery_app = Celery(
 
 def jalali_to_gregorian(jalali_date: str, time_str: str) -> datetime:
     """
-    Convert Jalali date (YYYY/MM/DD) + time (HH:MM) → Python datetime (UTC)
+    Convert Jalali date (YYYY/MM/DD) + time (HH:MM) → Python datetime in UTC
     """
     year, month, day = map(int, jalali_date.split("/"))
     hour, minute = map(int, time_str.split(":"))
-
     jdt = jdatetime.datetime(year, month, day, hour, minute)
-    # convert to Gregorian datetime
     gdt = jdt.togregorian()
-    return gdt.replace(tzinfo=timezone.utc)
+    tehran_time = gdt.replace(tzinfo=ZoneInfo("Asia/Tehran"))
+    return tehran_time.astimezone(timezone.utc)
+
 
 def log_and_report_error(context: str, error: Exception, extra: dict = None):
     tb = traceback.format_exc()
