@@ -49,6 +49,38 @@ def log_and_report_error(context: str, error: Exception, extra: dict = None):
     )
     send_message_api.delay(err_msg)
 
+
+def format_outages(data):
+    today = jdatetime.date.today()
+    persian_weekdays = ["دوشنبه","سه‌شنبه","چهارشنبه","پنج‌شنبه","جمعه","شنبه","یکشنبه"]
+
+    lines = []
+
+    for outage in data:
+        year, month, day = map(int, outage["outage_date"].split("/"))
+        outage_date = jdatetime.date(year, month, day)
+
+        delta = (outage_date - today).days
+
+        # Label selection
+        if delta == 0:
+            label = f"امروز ({outage['outage_date']})"
+        elif delta == 1:
+            label = f"فردا ({outage['outage_date']})"
+        elif delta == 2:
+            label = f"پس‌فردا ({outage['outage_date']})"
+        else:
+            weekday = persian_weekdays[outage_date.j_weekday]
+            label = f"{weekday} ({outage['outage_date']})"
+
+        # Append info
+        lines.append("")
+        lines.append(label + ":")
+        lines.append(f"شروع: {outage['outage_start_time']}")
+        lines.append(f"پایان: {outage['outage_stop_time']}")
+
+    return "\n".join(lines)
+
 async def report_to_admin(level, fun_name, msg, user_table=None):
     try:
         report_level = {
@@ -289,11 +321,11 @@ def check_the_service(bill_id):
                 time = data[0]["outage_stop_time"]
                 valid_until = jalali_to_gregorian(date, time)
                 update_valid_until(session, bill_id, valid_until)
-                # msg = text.get("removed_successfully", "removed_successfully")
-                msg = data
+                msg = text.get("outage_report", "outage_report")
+                msg += "\n" + format_outages(data)
+
                 for user in users:
-                    print(user.chat_id)
-                    send_message_api.delay(f"hello{data}", None, user.chat_id)
+                    send_message_api.delay(msg, None, user.chat_id)
 
     except Exception as e:
         log_and_report_error(
