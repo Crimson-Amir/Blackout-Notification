@@ -66,20 +66,23 @@ def jalali_to_gregorian(jalali_date: str, time_str: str) -> datetime:
 
 
 def log_and_report_error(context: str, error: Exception, extra: dict = None):
-    tb = traceback.format_exc()
-    error_id = uuid4().hex
-    extra["error_id"] = error_id
-    logger.error(
-        context, extra={"error": str(error), "traceback": tb, **extra}
-    )
-    err_msg = (
-        f"🔴 {context}:"
-        f"\n\nError type: {type(error)}"
-        f"\nError reason: {str(error)}"
-        f"\n\nExtera Info:"
-        f"\n{extra}"
-    )
-    send_message_api.delay(err_msg)
+    try:
+        tb = traceback.format_exc()
+        error_id = uuid4().hex
+        extra["error_id"] = error_id
+        logger.error(
+            context, extra={"error": str(error), "traceback": tb, **extra}
+        )
+        err_msg = (
+            f"🔴 {context}:"
+            f"\n\nError type: {type(error)}"
+            f"\nError reason: {str(error)}"
+            f"\n\nExtera Info:"
+            f"\n{extra}"
+        )
+        send_message_api.delay(err_msg)
+    except Exception as e:
+        send_message_api.delay(f'error in report to admin.\n{e}')
 
 
 def format_outages(data):
@@ -119,6 +122,8 @@ def format_outages(data):
             lines.append("")  # blank line between outages
 
     return "\n".join(lines).strip()
+
+
 def report_to_admin(level, fun_name, msg, user_table=None):
     try:
         report_level = {
