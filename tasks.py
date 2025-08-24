@@ -69,8 +69,10 @@ def log_and_report_error(context: str, error: Exception, extra: dict = None):
     try:
         tb = traceback.format_exc()
         error_id = uuid4().hex
+        send_message_api.delay(f'1')
         extra = extra or {}
         extra["error_id"] = error_id
+        send_message_api.delay(f'2')
         logger.error(
             context, extra={"error": str(error), "traceback": tb, **extra}
         )
@@ -158,8 +160,6 @@ def handle_task_errors(func):
         except Exception as e:
             retries = getattr(self.request, "retries", None)
             max_retries = getattr(self, "max_retries", None)
-
-            send_message_api.delay(f'error in report to admin')
 
             log_and_report_error(
                 f"Celery task: {func.__name__}",
