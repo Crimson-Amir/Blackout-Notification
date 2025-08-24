@@ -360,13 +360,7 @@ def check_the_service(bill_id):
 
                 msg = text.get("outage_report", "outage_report").format(bill_id)
                 msg += "\n\n" + format_outages(data)
-                group_thread_id = {-1002740590466: 3, -1001713158839: 11350}
-
                 for user in users:
-                    # if user.chat_id in group_thread_id.keys():
-                    #     key = [[InlineKeyboardButton(keyboard.get("join_the_bot", "join_the_bot"), url='t.me/@black_out_notification_bot/new_bill_id')]]
-                    #     send_message_api.delay(msg, group_thread_id.get(user.chat_id, key), user.chat_id, bill_id=bill_id, reply_markup=key)
-                    #     continue
                     send_message_api.delay(msg, None, user.chat_id, bill_id=bill_id)
 
                 msg_ = ("Service Checked!"
