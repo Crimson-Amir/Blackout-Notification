@@ -109,7 +109,7 @@ async def report_to_admin(level, fun_name, msg, user_table=None):
 def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT_ID):
     requests.post(
         url=f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-        json={'chat_id': chat_id, 'text': msg[:4096], 'message_thread_id': message_thread_id},
+        json={'chat_id': chat_id, 'text': msg[:4096], 'message_thread_id': message_thread_id, "parse_mode": "HTML"},
         timeout=10
     )
 
