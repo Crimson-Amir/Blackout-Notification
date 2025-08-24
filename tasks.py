@@ -115,15 +115,18 @@ def report_to_admin(level, fun_name, msg, user_table=None):
 @celery_app.task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
 def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT_ID, bill_id=None, reply_markup=None):
     try:
-        resp = requests.post(
-            url=f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
-            json={
+        json_data = {
                 'chat_id': chat_id,
                 'text': msg[:4096],
                 'message_thread_id': message_thread_id,
-                "parse_mode": "HTML",
-                "reply_markup": reply_markup
-            },
+                "parse_mode": "HTML"
+        }
+        if reply_markup:
+            json_data["reply_markup"] = reply_markup
+
+        resp = requests.post(
+            url=f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
+            json=json_data,
             timeout=10
         )
 
@@ -360,6 +363,7 @@ def check_the_service(bill_id):
                 for user in users:
                     if user.chat_id in group_thread_id.keys():
                         key = [[InlineKeyboardButton(keyboard.get("come_to_robot", "back"), callback_data='my_bill_ids')]]
+
                     send_message_api.delay(msg, group_thread_id.get(user.chat_id, None), user.chat_id)
 
                 msg_ = ("Service Checked!"
