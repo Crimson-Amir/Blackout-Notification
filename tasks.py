@@ -69,6 +69,7 @@ def log_and_report_error(context: str, error: Exception, extra: dict = None):
     try:
         tb = traceback.format_exc()
         error_id = uuid4().hex
+        extra = extra or {}
         extra["error_id"] = error_id
         logger.error(
             context, extra={"error": str(error), "traceback": tb, **extra}
