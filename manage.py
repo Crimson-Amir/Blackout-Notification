@@ -5,6 +5,7 @@ from utilities import handle_error
 from telegram.ext import ConversationHandler, CommandHandler, filters, MessageHandler, CallbackQueryHandler, ContextTypes
 from dialogue import text, keyboard
 from crud import set_new_blackout_report_token
+from core import GetAPI
 
 GET_BILL_ID, GET_ASSURNACE = range(2)
 
@@ -119,4 +120,5 @@ async def set_blackout_report_token(update, context: ContextTypes.DEFAULT_TYPE):
         return await context.bot.send_message(user.id, "you are not admin")
     with SessionLocal() as session:
         set_new_blackout_report_token(session, str(update.message.text.replace("/set_token ", "")))
+        GetAPI().get_new_header()
         await context.bot.send_message(user.id, "set succesfully")
