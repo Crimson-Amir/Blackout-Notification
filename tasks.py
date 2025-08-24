@@ -14,6 +14,7 @@ from crud import (insert_new_service_no_commit, add_user_service, get_user_servi
 import jdatetime
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
+from collections import defaultdict
 
 BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
@@ -55,33 +56,38 @@ def format_outages(data):
     today = jdatetime.date.today()
     persian_weekdays = ["دوشنبه","سه‌شنبه","چهارشنبه","پنج‌شنبه","جمعه","شنبه","یکشنبه"]
 
+    grouped = defaultdict(list)
+
+    # Group outages by outage_date
+    for outage in data:
+        grouped[outage["outage_date"]].append(outage)
+
     lines = []
 
-    for outage in data:
-        year, month, day = map(int, outage["outage_date"].split("/"))
+    # Iterate sorted by date
+    for date_str in sorted(grouped.keys()):
+        year, month, day = map(int, date_str.split("/"))
         outage_date = jdatetime.date(year, month, day)
-
         delta = (outage_date - today).days
 
         # Label selection
         if delta == 0:
-            label = f"امروز ({outage['outage_date']})"
+            label = f"امروز ({date_str})"
         elif delta == 1:
-            label = f"فردا ({outage['outage_date']})"
+            label = f"فردا ({date_str})"
         elif delta == 2:
-            label = f"پس‌فردا ({outage['outage_date']})"
+            label = f"پس‌فردا ({date_str})"
         else:
             weekday = persian_weekdays[outage_date.weekday()]
-            label = f"{weekday} ({outage['outage_date']})"
+            label = f"{weekday} ({date_str})"
 
-        # Append info
-        lines.append("")
         lines.append(label + ":")
-        lines.append(f"شروع: {outage['outage_start_time']}")
-        lines.append(f"پایان: {outage['outage_stop_time']}")
+        for outage in grouped[date_str]:
+            lines.append(f"شروع: {outage['outage_start_time']}")
+            lines.append(f"پایان: {outage['outage_stop_time']}")
+            lines.append("")  # blank line between outages
 
-    return "\n".join(lines)
-
+    return "\n".join(lines).strip()
 def report_to_admin(level, fun_name, msg, user_table=None):
     try:
         report_level = {
@@ -107,7 +113,7 @@ def report_to_admin(level, fun_name, msg, user_table=None):
         log_and_report_error(f'error in report to admin.\n{e}', e)
 
 @celery_app.task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
-def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT_ID, bill_id=None):
+def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT_ID, bill_id=None, reply_markup=None):
     try:
         resp = requests.post(
             url=f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
@@ -115,7 +121,8 @@ def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT
                 'chat_id': chat_id,
                 'text': msg[:4096],
                 'message_thread_id': message_thread_id,
-                "parse_mode": "HTML"
+                "parse_mode": "HTML",
+                "reply_markup": reply_markup
             },
             timeout=10
         )
@@ -348,9 +355,11 @@ def check_the_service(bill_id):
 
                 msg = text.get("outage_report", "outage_report").format(bill_id)
                 msg += "\n" + format_outages(data)
+                group_thread_id = {-1002740590466: 3, -1001713158839: 11350}
 
                 for user in users:
-                    group_thread_id = {-1002740590466: 3}
+                    if user.chat_id in group_thread_id.keys():
+                        key = [[InlineKeyboardButton(keyboard.get("come_to_robot", "back"), callback_data='my_bill_ids')]]
                     send_message_api.delay(msg, group_thread_id.get(user.chat_id, None), user.chat_id)
 
                 msg_ = ("Service Checked!"
