@@ -73,10 +73,14 @@ def update_valid_until(session, bill_id: int, valid_until: datetime):
     session.commit()
 
 def set_new_blackout_report_token(session, token):
-    update_token = session.query(model.Tokens).filter(model.Tokens.token_name == "blackout_report_token").first()
-    if not update_token:
-        raise ValueError("token not found")
+    new_token = session.query(model.Tokens).filter(model.Tokens.token_name == "blackout_report_token").first()
+    if not new_token:
+        new_token = model.Tokens(
+            token_name="blackout_report_token",
+            token=token,
+        )
+    else:
+        new_token.token = token
 
-    update_token.token = token
-    session.add(update_token)
+    session.add(new_token)
     session.commit()
