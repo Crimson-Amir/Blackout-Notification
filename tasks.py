@@ -68,8 +68,8 @@ def get_next_future_outage(data: list) -> dict | None:
         outage_dt = jalali_to_gregorian(date, time)
 
         if outage_dt > now:
-            return item  # first future outage
-    return None  # no outage in future
+            return item
+    return None
 
 
 
@@ -390,11 +390,10 @@ def check_the_service(bill_id):
                     date = next_outage["outage_date"]
                     time = next_outage["outage_stop_time"]
                     valid_until = jalali_to_gregorian(date, time)
-
-                    update_valid_until(session, bill_id, valid_until)
                 else:
                     valid_until = (datetime.now(ZoneInfo("Asia/Tehran")) + timedelta(days=1)).astimezone(timezone.utc)
-                    update_valid_until(session, bill_id, valid_until)
+
+                update_valid_until(session, bill_id, valid_until)
 
                 msg = text.get("outage_report", "outage_report").format(bill_id)
                 msg += "\n\n" + format_outages([next_outage])  # show only the next one
