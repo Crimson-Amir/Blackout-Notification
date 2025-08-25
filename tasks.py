@@ -27,18 +27,16 @@ celery_app = Celery(
 @celery_app.task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
 def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT_ID, bill_id=None, reply_markup=None):
     try:
-        send_message_api.delay(f'1')
         json_data = {
             'chat_id': chat_id,
             'text': msg[:4000],
             "parse_mode": "HTML"
         }
-        send_message_api.delay(f'2')
         if reply_markup:
             json_data["reply_markup"] = reply_markup
         if message_thread_id:
             json_data['message_thread_id'] = message_thread_id
-        send_message_api.delay(f'3')
+
         resp = requests.post(
             url=f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
             json=json_data,
