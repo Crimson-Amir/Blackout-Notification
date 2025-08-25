@@ -25,17 +25,18 @@ celery_app = Celery(
 
 
 @celery_app.task(autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
-def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT_ID, bill_id=None, reply_markup=None):
+def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT_ID, bill_id=None, reply_markup=None, parse_mode=True):
     try:
         json_data = {
             'chat_id': chat_id,
-            'text': msg[:4000],
-            "parse_mode": "HTML"
+            'text': msg[:4000]
         }
         if reply_markup:
             json_data["reply_markup"] = reply_markup
         if message_thread_id:
             json_data['message_thread_id'] = message_thread_id
+        if parse_mode:
+            json_data["parse_mode"] = "HTML"
 
         resp = requests.post(
             url=f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage",
@@ -74,13 +75,13 @@ def log_and_report_error(context: str, error: Exception, extra: dict = None):
             context, extra={"error": str(error), "traceback": tb, **extra}
         )
         err_msg = (
-            f"ERROR🔴 {context}:"
+            f"ERROR {context}:"
             f"\n\nError type: {type(error)}"
             f"\nError reason: {str(error)}"
             f"\n\nExtera Info:"
             f"\n{extra}"
         )
-        send_message_api.delay(str(err_msg))
+        send_message_api.delay(str(err_msg), parse_mode=False)
     except Exception as e:
         send_message_api.delay(f'error in report to admin.\n{type(e)}')
 
