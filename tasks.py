@@ -42,14 +42,13 @@ def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT
             json=json_data,
             timeout=10
         )
-        logger.info(f"{resp.status_code} {resp.json()}")
+        logger.info(f"{msg}")
         data = resp.json()
         if not data.get("ok", False) and bill_id and data.get("description", None) == "Forbidden: bot was blocked by the user":
             with SessionLocal() as session:
                 remove_bill(session, bill_id, chat_id)
                 session.execute()
     except Exception as e:
-        send_message_api.delay(f'error')
         log_and_report_error("tasks: send_message_api", e, extra={"chat_id": chat_id, "msg": msg})
 
 
