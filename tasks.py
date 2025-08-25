@@ -74,7 +74,7 @@ def log_and_report_error(context: str, error: Exception, extra: dict = None):
             context, extra={"error": str(error), "traceback": tb, **extra}
         )
         err_msg = (
-            f"🔴 {context}:"
+            f"[ERROR🔴] {context}:"
             f"\n\nError type: {type(error)}"
             f"\nError reason: {str(error)}"
             f"\n\nExtera Info:"
