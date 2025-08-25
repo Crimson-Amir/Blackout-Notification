@@ -396,7 +396,7 @@ def check_the_service(bill_id):
                 update_valid_until(session, bill_id, valid_until)
 
                 msg = text.get("outage_report", "outage_report").format(bill_id)
-                msg += "\n\n" + format_outages([next_outage])  # show only the next one
+                msg += "\n\n" + format_outages(data)  # show only the next one
                 for user in users:
                     send_message_api.delay(msg, None, user.chat_id, bill_id=bill_id)
 
