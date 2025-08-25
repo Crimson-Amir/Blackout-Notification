@@ -83,7 +83,7 @@ def log_and_report_error(context: str, error: Exception, extra: dict = None):
         )
         send_message_api.delay(str(err_msg), parse_mode=False)
     except Exception as e:
-        send_message_api.delay(f'error in report to admin.\n{type(e)}')
+        send_message_api.delay(f'error in report to admin.\n{e}', parse_mode=False)
 
 
 def format_outages(data):
@@ -145,7 +145,7 @@ def report_to_admin(level, fun_name, msg, user_table=None):
                 f"\nUsername: @{user_table.username}"
             )
 
-        send_message_api.delay(message, thread_id)
+        send_message_api.delay(message, thread_id, parse_mode=False)
     except Exception as e:
         log_and_report_error(f'error in report to admin.\n{e}', e)
 
@@ -176,7 +176,8 @@ def handle_task_errors(func):
                     send_message_api.delay(
                         chat_id=chat_id,
                         message_thread_id=None,
-                        msg=text.get("task_failed", "task_failed")
+                        msg=text.get("task_failed", "task_failed"),
+                        parse_mode=False
                     )
                 except Exception as notify_err:
                     log_and_report_error(
