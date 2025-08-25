@@ -392,23 +392,20 @@ def check_the_service(bill_id):
                     valid_until = jalali_to_gregorian(date, time)
 
                     update_valid_until(session, bill_id, valid_until)
-
-                    msg = text.get("outage_report", "outage_report").format(bill_id)
-                    msg += "\n\n" + format_outages([next_outage])  # show only the next one
-                    for user in users:
-                        send_message_api.delay(msg, None, user.chat_id, bill_id=bill_id)
-
-                    msg_ = (
-                        "Service Checked!"
-                        f"\nbill_id: {bill_id}"
-                        f"\nvalid_until: {valid_until}"
-                    )
-                    report_to_admin("info", "check_the_service", msg_)
                 else:
-                    # fallback: no future outages → set tomorrow as valid_until
                     fallback = (datetime.now(ZoneInfo("Asia/Tehran")) + timedelta(days=1)).astimezone(timezone.utc)
                     update_valid_until(session, bill_id, fallback)
+                msg = text.get("outage_report", "outage_report").format(bill_id)
+                msg += "\n\n" + format_outages([next_outage])  # show only the next one
+                for user in users:
+                    send_message_api.delay(msg, None, user.chat_id, bill_id=bill_id)
 
+                msg_ = (
+                    "Service Checked!"
+                    f"\nbill_id: {bill_id}"
+                    f"\nvalid_until: {valid_until}"
+                )
+                report_to_admin("info", "check_the_service", msg_)
 
 
     except Exception as e:
