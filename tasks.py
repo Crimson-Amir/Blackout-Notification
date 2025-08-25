@@ -12,7 +12,7 @@ import functools
 from crud import (insert_new_service_no_commit, add_user_service, get_user_services, remove_bill,
                   get_all_available_services, get_all_service_users, update_valid_until)
 import jdatetime
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from collections import defaultdict
 
@@ -51,6 +51,26 @@ def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT
                 session.execute()
     except Exception as e:
         log_and_report_error("tasks: send_message_api", e, extra={"chat_id": chat_id, "message": msg})
+
+
+def get_next_future_outage(data: list) -> dict | None:
+    """
+    From the API data list, return the first outage that is in the future.
+    If none found, return None.
+    """
+    now = datetime.now(timezone.utc)
+
+    for item in data:
+        date = item["outage_date"]
+        time = item["outage_stop_time"]
+
+        # convert Jalali+time → UTC datetime
+        outage_dt = jalali_to_gregorian(date, time)
+
+        if outage_dt > now:
+            return item  # first future outage
+    return None  # no outage in future
+
 
 
 def jalali_to_gregorian(jalali_date: str, time_str: str) -> datetime:
@@ -364,20 +384,31 @@ def check_the_service(bill_id):
             get_data = GetAPI().get_planned_blackout_report(bill_id, from_date, to_date)
             data = get_data.get("data")
             if data:
-                date = data[0]["outage_date"]
-                time = data[0]["outage_stop_time"]
-                valid_until = jalali_to_gregorian(date, time)
-                update_valid_until(session, bill_id, valid_until)
+                next_outage = get_next_future_outage(data)
 
-                msg = text.get("outage_report", "outage_report").format(bill_id)
-                msg += "\n\n" + format_outages(data)
-                for user in users:
-                    send_message_api.delay(msg, None, user.chat_id, bill_id=bill_id)
+                if next_outage:
+                    date = next_outage["outage_date"]
+                    time = next_outage["outage_stop_time"]
+                    valid_until = jalali_to_gregorian(date, time)
 
-                msg_ = ("Service Checked!"
+                    update_valid_until(session, bill_id, valid_until)
+
+                    msg = text.get("outage_report", "outage_report").format(bill_id)
+                    msg += "\n\n" + format_outages([next_outage])  # show only the next one
+                    for user in users:
+                        send_message_api.delay(msg, None, user.chat_id, bill_id=bill_id)
+
+                    msg_ = (
+                        "Service Checked!"
                         f"\nbill_id: {bill_id}"
-                        f"\nvalid_until: {str(valid_until)}")
-                report_to_admin("info", "check_the_service", msg_)
+                        f"\nvalid_until: {valid_until}"
+                    )
+                    report_to_admin("info", "check_the_service", msg_)
+                else:
+                    # fallback: no future outages → set tomorrow as valid_until
+                    fallback = (datetime.now(ZoneInfo("Asia/Tehran")) + timedelta(days=1)).astimezone(timezone.utc)
+                    update_valid_until(session, bill_id, fallback)
+
 
 
     except Exception as e:
