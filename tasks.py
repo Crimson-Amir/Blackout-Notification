@@ -50,7 +50,7 @@ def send_message_api(msg, message_thread_id=ERR_THREAD_ID, chat_id=TELEGRAM_CHAT
                 remove_bill(session, bill_id, chat_id)
                 session.execute()
     except Exception as e:
-        log_and_report_error("tasks: send_message_api", e, extra={"chat_id": chat_id, "message": msg})
+        log_and_report_error("tasks: send_message_api", e, extra={"chat_id": chat_id, "_msg": msg})
 
 
 def get_next_future_outage(data: list) -> dict | None:
