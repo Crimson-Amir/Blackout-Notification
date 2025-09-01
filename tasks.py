@@ -108,7 +108,7 @@ def log_and_report_error(context: str, error: Exception, extra: dict = None):
 
 def format_outages(data):
     today = jdatetime.date.today()
-    persian_weekdays = ["دوشنبه","سه‌شنبه","چهارشنبه","پنج‌شنبه","جمعه","شنبه","یکشنبه"]
+    persian_weekdays = ["شنبه","یک شنبه","دو شنبه","سه شنبه","چهار شنبه","پنجشنبه","جمعه"]
 
     grouped = defaultdict(list)
 
