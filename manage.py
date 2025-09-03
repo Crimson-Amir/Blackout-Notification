@@ -46,7 +46,8 @@ async def get_bill_id(update, context):
         )
         return GET_BILL_ID
 
-    await context.bot.send_message(chat_id=user_detail.id, text=text.get("enter_bill_name", "enter_bill_name"))
+    key = [[InlineKeyboardButton(keyboard.get('cancel_button', "cancel_button"), callback_data='cancel_add_new_bill')]]
+    await context.bot.send_message(chat_id=user_detail.id, text=text.get("enter_bill_name", "enter_bill_name"), reply_markup=InlineKeyboardMarkup(key))
     context.user_data["bill_id"] = user_bill_id
     return GET_BILL_NAME
 
