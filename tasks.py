@@ -384,7 +384,7 @@ def check_the_service(bill_id):
         with SessionLocal() as session:
             users = get_all_service_users(session, bill_id)
             if not users:
-                report_to_admin("info", "check_the_service", f'bill {bill_id} removed because no one useing it!')
+                report_to_admin("info", "check_the_service", f'bill {bill_id} removed because no one using it!')
                 crud.remove_service(session, bill_id)
                 return
             from_date, to_date = get_jalali_date_range()
