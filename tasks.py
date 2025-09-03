@@ -239,7 +239,7 @@ def send_bill_message(self, chat_id: int, user_bill_id: int, message_id: int):
 
 @celery_app.task(bind=True, autoretry_for=(Exception,), retry_kwargs={"max_retries": 3, "countdown": 5})
 @handle_task_errors
-def add_bill_id(self, chat_id: int, user_bill_id: int, message_id: int):
+def add_bill_id(self, chat_id: int, user_bill_id: int, bill_name: str, message_id: int):
     with SessionLocal() as session:
         try:
             insert_new_service_no_commit(session, user_bill_id)
@@ -248,7 +248,7 @@ def add_bill_id(self, chat_id: int, user_bill_id: int, message_id: int):
             session.rollback()
 
         try:
-            add_user_service(session, user_bill_id, chat_id)
+            add_user_service(session, user_bill_id, chat_id, bill_name)
             session.commit()
             msg = text.get("bill_id_succesfully_added", "bill_id_succesfully_added")
 
@@ -396,9 +396,10 @@ def check_the_service(bill_id):
 
                 update_valid_until(session, bill_id, valid_until)
 
-                msg = text.get("outage_report", "outage_report").format(bill_id)
-                msg += "\n\n" + format_outages(data)  # show only the next one
+                msg = text.get("outage_report", "outage_report")
+                msg += "\n\n" + format_outages(data)
                 for user in users:
+                    msg = msg.format(user.bill_name or bill_id)
                     send_message_api.delay(msg, None, user.chat_id, bill_id=bill_id)
 
                 msg_ = (

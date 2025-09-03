@@ -28,9 +28,10 @@ def insert_new_service_no_commit(session, bill_id):
     )
     session.add(new_bill)
 
-def add_user_service(session, bill_id, chat_id):
+def add_user_service(session, bill_id, chat_id, bill_name):
     user_service = model.UserService(
         chat_id=chat_id,
+        bill_name=bill_name,
         bill_id=bill_id,
     )
     session.add(user_service)

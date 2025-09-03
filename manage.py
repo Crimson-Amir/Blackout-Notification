@@ -7,7 +7,7 @@ from dialogue import text, keyboard
 from crud import set_new_blackout_report_token
 from core import GetAPI
 
-GET_BILL_ID, GET_ASSURNACE = range(2)
+GET_BILL_ID, GET_BILL_NAME = range(2)
 
 async def cancel(update, context):
     query = update.callback_query
@@ -41,15 +41,34 @@ async def get_bill_id(update, context):
         key = [[InlineKeyboardButton(keyboard.get('cancel_button', "cancel_button"), callback_data='cancel_add_new_bill')]]
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
-            text=text.get('input_should_be_number'),
+            text=text.get('input_should_be_number', 'input_should_be_number'),
             reply_markup=InlineKeyboardMarkup(key)
         )
         return GET_BILL_ID
 
-    msg = await context.bot.send_message(chat_id=user_detail.id, text=text.get("processing", "processing"))
-    tasks.send_bill_message.delay(user_detail.id, int(user_bill_id), msg.message_id)
-    return ConversationHandler.END
+    await context.bot.send_message(chat_id=user_detail.id, text=text.get("enter_bill_name", "enter_bill_name"))
+    context.user_data["bill_id"] = user_bill_id
+    return GET_BILL_NAME
 
+@handle_error.handle_conversetion_error
+async def get_bill_name(update, context):
+    user_detail = update.effective_chat
+    bill_name = update.message.text
+
+    if len(bill_name) > 15:
+        key = [[InlineKeyboardButton(keyboard.get('cancel_button', "cancel_button"), callback_data='cancel_add_new_bill')]]
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=text.get('name_should_be_less_than_15', 'name_should_be_less_than_15'),
+            reply_markup=InlineKeyboardMarkup(key)
+        )
+        return GET_BILL_NAME
+
+    context.user_data["bill_name"] = bill_name
+    bill_id = context.user_data['bill_id']
+    msg = await context.bot.send_message(chat_id=user_detail.id, text=text.get("processing", "processing"))
+    tasks.send_bill_message.delay(user_detail.id, int(bill_id), msg.message_id)
+    return ConversationHandler.END
 
 add_bill_id_handler = ConversationHandler(
     entry_points=[
@@ -57,7 +76,8 @@ add_bill_id_handler = ConversationHandler(
         CommandHandler("new_bill_id", ask_for_bill_id),  # same function for command
     ],
     states={
-        GET_BILL_ID: [MessageHandler(filters.TEXT, get_bill_id)]
+        GET_BILL_ID: [MessageHandler(filters.TEXT, get_bill_id)],
+        GET_BILL_NAME: [MessageHandler(filters.TEXT, get_bill_name)]
     },
     fallbacks=[CallbackQueryHandler(cancel, pattern='cancel_add_new_bill')],
     conversation_timeout=600,
@@ -74,8 +94,9 @@ async def add_bill_id_address(update, context):
         msg = text.get("action_canceled", "action_canceled")
         return await query.edit_message_text(text=msg, parse_mode='html', reply_markup=InlineKeyboardMarkup(key))
 
+    bill_name = context.user_data["bill_name"]
     wait_msg = await query.edit_message_text(text=text.get("processing", "processing"), parse_mode='html')
-    tasks.add_bill_id.delay(user_detail.id, int(bill_id), wait_msg.message_id)
+    tasks.add_bill_id.delay(user_detail.id, int(bill_id), bill_name, wait_msg.message_id)
 
 
 @handle_error.handle_functions_error

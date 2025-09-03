@@ -10,6 +10,7 @@ class UserService(Base):
 
     chat_id = Column(BigInteger, ForeignKey("user_detail.chat_id"), primary_key=True)
     bill_id = Column(String, ForeignKey("service.bill_id"), primary_key=True)
+    bill_name = Column(String)
 
     # relationships back
     user = relationship("UserDetail", back_populates="user_services")
