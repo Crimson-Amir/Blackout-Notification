@@ -384,6 +384,7 @@ def check_the_service(bill_id):
             get_data = GetAPI().get_planned_blackout_report(bill_id, from_date, to_date)
             data = get_data.get("data")
             if data:
+                if len(data) > 12: return
                 next_outage = get_next_future_outage(data)
 
                 if next_outage:
