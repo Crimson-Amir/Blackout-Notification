@@ -98,7 +98,7 @@ async def add_bill_id_address(update, context):
     bill_name = context.user_data["bill_name"]
     wait_msg = await query.edit_message_text(text=text.get("processing", "processing"), parse_mode='html')
     tasks.add_bill_id.delay(user_detail.id, int(bill_id), bill_name, wait_msg.message_id)
-
+    context.user_data.clear()
 
 @handle_error.handle_functions_error
 async def my_bill_ids(update, context):
