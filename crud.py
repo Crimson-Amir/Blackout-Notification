@@ -47,6 +47,14 @@ def remove_bill(session, bill_id, chat_id):
     ).delete(synchronize_session=False)
     return rows
 
+def remove_service(session, bill_id):
+    rows = session.query(model.Service).filter_by(
+        bill_id=str(bill_id)
+    ).delete(synchronize_session=False)
+    session.commit()
+    return rows
+
+
 def get_all_available_services(session):
     now = datetime.now(timezone.utc)
     return (
