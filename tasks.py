@@ -385,6 +385,7 @@ def check_the_service(bill_id):
             users = get_all_service_users(session, bill_id)
             if not users:
                 crud.remove_service(session, bill_id)
+                return
             from_date, to_date = get_jalali_date_range()
             get_data = GetAPI().get_planned_blackout_report(bill_id, from_date, to_date)
             data = get_data.get("data")
