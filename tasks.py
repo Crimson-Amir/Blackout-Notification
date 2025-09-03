@@ -254,7 +254,8 @@ def add_bill_id(self, chat_id: int, user_bill_id: int, bill_name: str, message_i
 
             msg_ = ("New Bill ID Registered!"
                     f"\nchat_id: {chat_id}"
-                    f"\nbill_id: {user_bill_id}")
+                    f"\nbill_id: {user_bill_id}"
+                    f"\nbill name: {bill_name}")
             report_to_admin("info", "add_bill_id", msg_)
 
         except IntegrityError:
@@ -287,7 +288,7 @@ def get_all_user_bill_ids(self, chat_id: int, message_id: int):
             key = [[InlineKeyboardButton(keyboard.get("new_notification", "new_notification"), callback_data=f'ask_for_bill_id')]]
             msg = text.get("no_service_found", "no_service_found")
         else:
-            key = [[InlineKeyboardButton(bill.bill_id, callback_data=f'find_my_bill__{bill.bill_id}')] for bill in all_bills]
+            key = [[InlineKeyboardButton(bill.bill_name or bill.bill_id, callback_data=f'find_my_bill__{bill.bill_id}')] for bill in all_bills]
             msg = text.get("select_your_bill", "select_your_bill")
 
         key.append([InlineKeyboardButton(keyboard.get("back", "back"), callback_data='start_edit_message')])
