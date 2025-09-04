@@ -403,10 +403,10 @@ def check_the_service(bill_id):
 
                 update_valid_until(session, bill_id, valid_until)
 
-                msg = text.get("outage_report", "outage_report")
-                msg += "\n\n" + format_outages(data)
+                format_outage_text = format_outages(data)
                 for user in users:
-                    msg = msg.format(user.bill_name or bill_id)
+                    msg = text.get("outage_report", "outage_report")
+                    msg = msg.format(user.bill_name or bill_id) + "\n\n" + format_outage_text
                     send_message_api.delay(msg, None, user.chat_id, bill_id=bill_id)
 
                 msg_ = (
