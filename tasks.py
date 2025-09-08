@@ -371,7 +371,7 @@ def check_all_bills():
             for i, service in enumerate(all_services):
                 check_the_service.apply_async(
                     args=(service.bill_id,),
-                    countdown=i * 10
+                    countdown=i * 60
                 )
     except Exception as e:
         log_and_report_error(f"Celery task: check_all_bills", e)
